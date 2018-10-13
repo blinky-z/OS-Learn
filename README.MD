@@ -372,14 +372,13 @@ do_noncritical();
 semaphore mutex;
 semaphore full;
 semaphore empty;
-ItemBuffer items;
 
 void producer() {
     while (true) {
         Item item = create_item();
         down(&empty);
         down(&mutex);
-        items.insert(item);
+        insert_item();
         up(&mutex);
         up(&full);
    } 
@@ -389,7 +388,7 @@ void consumer() {
     while (true) {
         down(&full);
         down(&mutex);
-        Item item = items.remove_item();
+        Item item = remove();
         up(&mutex);
         up(&empty);
         handle_item(item);
