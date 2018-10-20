@@ -1,7 +1,6 @@
 #ifndef THREADSLEARN_MUTEX_H
 #define THREADSLEARN_MUTEX_H
 
-
 #include <atomic>
 #include <thread>
 
