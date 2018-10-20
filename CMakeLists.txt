@@ -6,6 +6,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 
 add_executable(ThreadsLearn
 #        Spinlock
-        Spinlock.cpp Spinlock.h spinlock_test.cpp)
+        Spinlock.cpp Spinlock.h
+        spinlock_test.cpp
+        )
 
 target_link_libraries(ThreadsLearn pthread)
