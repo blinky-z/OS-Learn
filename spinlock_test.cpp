@@ -8,10 +8,11 @@ using namespace std;
 Spinlock lock;
 int cnt = 0;
 
-const int THREADS_NUM = 2;
+const int THREADS_NUM = 100;
+const int OP_PER_THREAD = 1000;
 
 void thread_run(int thread_num) {
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < OP_PER_THREAD; i++) {
         lock.acquire();
         cnt++;
         cout << "[Thread " << thread_num << "] " << cnt << endl;
@@ -30,5 +31,5 @@ int main() {
         threads[i].join();
     }
 
-    assert(cnt == 200);
+    assert(cnt == THREADS_NUM * OP_PER_THREAD);
 }
