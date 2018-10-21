@@ -1,16 +1,19 @@
 #ifndef THREADSLEARN_MUTEX_H
 #define THREADSLEARN_MUTEX_H
 
-#include <atomic>
-#include <thread>
+#include <sched.h>
 
 class Mutex {
 private:
-    std::atomic_flag lock = ATOMIC_FLAG_INIT;
+    bool lock;
 public:
     void acquire();
 
     void release();
+
+    Mutex() {
+        lock = 0;
+    }
 };
 
 

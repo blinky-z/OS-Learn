@@ -5,7 +5,6 @@
 #include <vector>
 #include <thread>
 #include "../Mutex.h"
-
 using namespace std;
 
 Mutex lock;

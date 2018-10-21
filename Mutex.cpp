@@ -1,11 +1,13 @@
 #include "Mutex.h"
 
 void Mutex::acquire() {
-    while (lock.test_and_set()) {
-        std::this_thread::yield();
+    bool oldValue;
+    __atomic_load(&lock, &oldValue, 0);
+    while (__atomic_test_and_set(&lock, 0)) {
+        sched_yield();
     }
 }
 
 void Mutex::release() {
-    lock.clear();
+    __atomic_clear(&lock, 0);
 }
