@@ -12,7 +12,7 @@ public:
     void release();
 
     Mutex() {
-        lock = 0;
+        lock = false;
     }
 };
 
