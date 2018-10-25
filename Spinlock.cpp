@@ -41,3 +41,11 @@ void Spinlock::acquire() {
 void Spinlock::release() {
     lock.clear();
 }
+
+bool Spinlock::try_lock() {
+    if (lock.test_and_set()) {
+        return false;
+    } else {
+        return true;
+    }
+}

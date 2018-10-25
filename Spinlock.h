@@ -9,6 +9,8 @@ public:
     void acquire();
 
     void release();
+
+    bool try_lock();
 };
 
 
