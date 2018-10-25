@@ -11,6 +11,8 @@ public:
 
     void release();
 
+    bool try_lock();
+
     Mutex() {
         lock = false;
     }
