@@ -49,20 +49,23 @@ void do_acquire(bool* can_lock) {
 }
 
 TEST_CASE("Test Mutual exclusion") {
-    bool can_lock[THREADS_NUM];
-    vector<thread> threads;
-    threads.reserve(THREADS_NUM);
-    for (int i = 0; i < THREADS_NUM; i++) {
-        threads.emplace_back(thread(do_acquire, &can_lock[i]));
-    }
+    for (int current_try = 0; current_try < 10; current_try++) {
+        bool can_lock[THREADS_NUM];
+        vector<thread> threads;
+        threads.reserve(THREADS_NUM);
+        for (int i = 0; i < THREADS_NUM; i++) {
+            threads.emplace_back(thread(do_acquire, &can_lock[i]));
+        }
 
-    for (int i = 0; i < THREADS_NUM; i++) {
-        threads[i].join();
-    }
+        for (int i = 0; i < THREADS_NUM; i++) {
+            threads[i].join();
+        }
+        lock.release();
 
-    if (can_lock[0]) {
-        REQUIRE(!can_lock[1]); // assert the other thread can not acquire a lock
-    } else {
-        REQUIRE(!can_lock[0]);
+        if (can_lock[0]) {
+            REQUIRE(!can_lock[1]); // assert the other thread can not acquire a lock
+        } else {
+            REQUIRE(can_lock[1]);
+        }
     }
 }
