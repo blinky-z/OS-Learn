@@ -63,9 +63,9 @@ TEST_CASE("Test Mutual exclusion") {
         lock.release();
 
         if (can_lock[0]) {
-            REQUIRE(!can_lock[1]); // assert the other thread can not acquire a lock
+            REQUIRE(!can_lock[1]); // if first thread acquired a lock so other thread can not acquire lock
         } else {
-            REQUIRE(can_lock[1]);
+            REQUIRE(can_lock[1]); // if first threads can not acquire a lock so the other thread acquired it
         }
     }
 }
