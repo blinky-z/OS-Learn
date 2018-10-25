@@ -5,10 +5,16 @@
 #include <vector>
 #include <thread>
 #include "../Mutex.h"
+#include "../Spinlock.h"
 
 using namespace std;
 
+#if TEST_MUTEX
 Mutex lock;
+#else
+Spinlock lock;
+#endif
+
 int cnt = 0;
 
 const int THREADS_NUM = 100;
@@ -50,14 +56,14 @@ void do_acquire(bool* can_lock) {
 
 TEST_CASE("Test Mutual exclusion") {
     for (int current_try = 0; current_try < 10; current_try++) {
-        bool can_lock[THREADS_NUM];
+        bool can_lock[2];
         vector<thread> threads;
-        threads.reserve(THREADS_NUM);
-        for (int i = 0; i < THREADS_NUM; i++) {
+        threads.reserve(2);
+        for (int i = 0; i < 2; i++) {
             threads.emplace_back(thread(do_acquire, &can_lock[i]));
         }
 
-        for (int i = 0; i < THREADS_NUM; i++) {
+        for (int i = 0; i < 2; i++) {
             threads[i].join();
         }
         lock.release();
