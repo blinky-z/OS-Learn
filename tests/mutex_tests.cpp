@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include "../Mutex.h"
+
 using namespace std;
 
 Mutex lock;
@@ -17,7 +18,7 @@ void reset_count() {
     cnt = 0;
 }
 
-void thread_run(int thread_num) {
+void do_increment(int thread_num) {
     for (int i = 0; i < OP_PER_THREAD; i++) {
         lock.acquire();
         cnt++;
@@ -31,7 +32,7 @@ TEST_CASE("Concurrent count increment") {
         vector<thread> threads;
         threads.reserve(THREADS_NUM);
         for (int i = 0; i < THREADS_NUM; i++) {
-            threads.emplace_back(thread(thread_run, i));
+            threads.emplace_back(thread(do_increment, i));
         }
 
         for (int i = 0; i < THREADS_NUM; i++) {
@@ -40,5 +41,28 @@ TEST_CASE("Concurrent count increment") {
 
         REQUIRE(cnt == THREADS_NUM * OP_PER_THREAD);
         reset_count();
+    }
+}
+
+void do_acquire(bool* can_lock) {
+    *can_lock = lock.try_lock();
+}
+
+TEST_CASE("Test Mutual exclusion") {
+    bool can_lock[THREADS_NUM];
+    vector<thread> threads;
+    threads.reserve(THREADS_NUM);
+    for (int i = 0; i < THREADS_NUM; i++) {
+        threads.emplace_back(thread(do_acquire, &can_lock[i]));
+    }
+
+    for (int i = 0; i < THREADS_NUM; i++) {
+        threads[i].join();
+    }
+
+    if (can_lock[0]) {
+        REQUIRE(!can_lock[1]); // assert the other thread can not acquire a lock
+    } else {
+        REQUIRE(!can_lock[0]);
     }
 }
