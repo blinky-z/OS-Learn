@@ -35,17 +35,17 @@ void Spinlock::acquire() {
     // потока все еще могут одновременно убедиться, что значение lock равно 0 (потому что один из них может прерваться
     // и не успеть захватить лок), и начать работать с критической областью
 
-    while (lock.test_and_set());
+    while (!this->try_lock());
 }
 
 void Spinlock::release() {
-    lock.clear();
+    __atomic_clear(&lock, 0);
 }
 
 bool Spinlock::try_lock() {
-    if (lock.test_and_set()) {
+    if (__atomic_test_and_set(&lock, 0)) { // prev value was 1 (lock is already acquired)
         return false;
     } else {
-        return true;
+        return true; // successful
     }
 }
