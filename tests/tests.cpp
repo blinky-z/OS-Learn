@@ -17,8 +17,8 @@ Spinlock lock;
 
 int cnt = 0;
 
-const int THREADS_NUM = 100;
-const int OP_PER_THREAD = 100;
+int THREADS_NUM;
+int OP_PER_THREAD;
 
 void reset_count() {
     cnt = 0;
@@ -34,6 +34,9 @@ void do_increment(int thread_num) {
 }
 
 TEST_CASE("Concurrent count increment") {
+    THREADS_NUM = 100;
+    OP_PER_THREAD = 100;
+
     for (int current_try = 0; current_try < 10; current_try++) {
         vector<thread> threads;
         threads.reserve(THREADS_NUM);
@@ -55,15 +58,17 @@ void do_acquire(bool* can_lock) {
 }
 
 TEST_CASE("Test Mutual exclusion") {
+    THREADS_NUM = 2;
+
     for (int current_try = 0; current_try < 10; current_try++) {
-        bool can_lock[2];
+        bool can_lock[THREADS_NUM];
         vector<thread> threads;
-        threads.reserve(2);
-        for (int i = 0; i < 2; i++) {
+        threads.reserve(THREADS_NUM);
+        for (int i = 0; i < THREADS_NUM; i++) {
             threads.emplace_back(thread(do_acquire, &can_lock[i]));
         }
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < THREADS_NUM; i++) {
             threads[i].join();
         }
         lock.release();
