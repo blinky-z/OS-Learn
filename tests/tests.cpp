@@ -52,7 +52,10 @@ TEST_CASE("Concurrent count increment") {
 
 void do_acquire(volatile atomic<bool>* locked) {
     *locked = lock.try_lock();
-    while (!(*locked)) {cout << "Can not acquire\n";};
+    while (!(*locked)) {
+        cout << "Can not acquire\n";
+        *locked = lock.try_lock();
+    }
 }
 
 void find_n_prime_number(int n, volatile atomic<bool>* locked) {
