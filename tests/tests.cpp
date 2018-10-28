@@ -91,8 +91,8 @@ TEST_CASE("Unable acquire a lock while other thread already acquired it") {
 
         vector<thread> threads;
         threads.reserve(THREADS_NUM);
-        threads.emplace_back(thread(find_n_prime_number, 20, &locked[0]));
-        while (!locked[0]); // wait until first thread acquire a lock to put other thread to work
+        threads.emplace_back(thread(find_n_prime_number, 100, &locked[0]));
+        while (!locked[0]); // wait until first thread acquired a lock to put other thread to work
         threads.emplace_back(thread(do_acquire, &locked[1]));
 
         for (int i = 0; i < THREADS_NUM; i++) {
