@@ -2,7 +2,7 @@
 
 void Mutex::acquire() {
     while (!try_lock()) {
-        sched_yield();
+        std::this_thread::yield();
     }
 }
 

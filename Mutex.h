@@ -1,7 +1,7 @@
 #ifndef THREADSLEARN_MUTEX_H
 #define THREADSLEARN_MUTEX_H
 
-#include <sched.h> // yield thread linux func
+#include <thread> // yield() func
 
 class Mutex {
 private:
