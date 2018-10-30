@@ -51,24 +51,27 @@ TEST_CASE("Concurrent count increment") {
     }
 }
 
-void do_acquire(atomic<bool>* locked, condition_variable* is_second_thread_acquired_lock) {
-    *locked = lock.try_lock();
-    while (!(*locked)) {
-        REQUIRE(!(*locked));
-        cout << "Thread 2 can not acquire a lock. Sleeping...\n";
-        this_thread::sleep_for(chrono::milliseconds(60));
-        cout << "Waked up. Trying to acquire a lock again\n";
-        *locked = lock.try_lock();
-    }
-    cout << "Thread 2 successfully acquired a lock\n";
-    is_second_thread_acquired_lock->notify_one();
+condition_variable is_first_thread_acquired_lock;
+condition_variable second_thread_can_acquire;
+
+void do_acquire() {
+    cout << "thread 2 trying to acquire a lock\n";
+    bool locked = lock.try_lock();
+    REQUIRE(!locked);
+
+    mutex wait_mutex;
+    unique_lock<mutex> wait_lock(wait_mutex);
+
+    second_thread_can_acquire.wait(wait_lock);
+
+    locked = lock.try_lock();
+    REQUIRE(locked);
 }
 
-void find_n_prime_number(int n, atomic<bool>* locked, condition_variable* is_first_thread_acquired_lock) {
+void find_n_prime_number(int n) {
     lock.acquire();
-    is_first_thread_acquired_lock->notify_one();
+    is_first_thread_acquired_lock.notify_one();
     cout << "Thread 1 acquired a lock\n";
-    *locked = true;
 
     int prime_numbers_cnt = 0;
     int current_num = 2;
@@ -88,44 +91,28 @@ void find_n_prime_number(int n, atomic<bool>* locked, condition_variable* is_fir
     }
 
     lock.release();
-    *locked = false;
     cout << "Thread 1 released a lock\n";
+    second_thread_can_acquire.notify_one();
 }
 
 TEST_CASE("Unable acquire a lock while other thread already acquired it") {
     THREADS_NUM = 2;
 
-    for (int current_try = 0; current_try < 10; current_try++) {
-        atomic<bool> locked[THREADS_NUM]; // monitoring which thread acquired a lock
+    vector<thread> threads;
+    threads.reserve(THREADS_NUM);
 
-        vector<thread> threads;
-        threads.reserve(THREADS_NUM);
+    mutex first_thread_wait_mutex;
+    unique_lock<mutex> first_thread_wait_lock(first_thread_wait_mutex);
 
-        mutex first_thread_wait_mutex;
-        mutex second_thread_wait_mutex;
+    threads.emplace_back(thread(find_n_prime_number, 100)); // put first thread to work (long work)
+    is_first_thread_acquired_lock.wait(
+            first_thread_wait_lock); // wait until first thread acquired a lock to put second one to work
+    threads.emplace_back(
+            thread(do_acquire)); // put second thread to work
 
-        condition_variable is_first_thread_acquired_lock;
-        condition_variable is_second_thread_acquired_lock;
-
-        threads.emplace_back(thread(find_n_prime_number, 100, &locked[0], &is_first_thread_acquired_lock));
-
-        unique_lock<mutex> first_thread_wait_lock(first_thread_wait_mutex);
-        is_first_thread_acquired_lock.wait(first_thread_wait_lock); // wait until first thread acquired a lock to put second one to work
-
-        threads.emplace_back(thread(do_acquire, &locked[1], &is_second_thread_acquired_lock));
-
-        for (int i = 0; i < THREADS_NUM; i++) {
-            threads[i].detach();
-        }
-
-        unique_lock<mutex> second_thread_wait_lock(second_thread_wait_mutex);
-        is_second_thread_acquired_lock.wait(second_thread_wait_lock);
-
-        cout << "thread 0 state: " << locked[0] << endl;
-        cout << "thread 1 state: " << locked[1] << endl;
-        REQUIRE(!locked[0]);
-        REQUIRE(locked[1]); // thread 1 can acquire a lock since thread 0 released it
-
-        lock.release();
+    for (int i = 0; i < THREADS_NUM; i++) {
+        threads[i].join();
     }
+
+    lock.release();
 }
