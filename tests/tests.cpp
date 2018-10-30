@@ -54,6 +54,7 @@ void do_increment(int thread_num, int* cnt) {
 void do_acquire(atomic<bool>* locked, condition_variable* is_second_thread_acquired_lock) {
     *locked = lock.try_lock();
     while (!(*locked)) {
+        REQUIRE(!(*locked));
         cout << "Thread 2 can not acquire a lock. Sleeping...\n";
         this_thread::sleep_for(chrono::milliseconds(60));
         cout << "Waked up. Trying to acquire a lock again\n";
@@ -116,10 +117,6 @@ TEST_CASE("Unable acquire a lock while other thread already acquired it") {
         for (int i = 0; i < THREADS_NUM; i++) {
             threads[i].detach();
         }
-
-//        while (locked[0]) {
-//            REQUIRE(!locked[1]); // thread 1 can not acquire a lock while thread 0 already acquired it
-//        }
 
         unique_lock<mutex> second_thread_wait_lock(second_thread_wait_mutex);
         is_second_thread_acquired_lock.wait(second_thread_wait_lock);
