@@ -1,6 +1,8 @@
 #ifndef THREADSLEARN_SPINLOCK_H
 #define THREADSLEARN_SPINLOCK_H
 
+#include <thread>
+#include <chrono>
 
 class Spinlock {
 private:

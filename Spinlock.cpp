@@ -1,7 +1,9 @@
 #include "Spinlock.h"
 
 void Spinlock::acquire() {
-    while (!this->try_lock());
+    while (!this->try_lock()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
 }
 
 void Spinlock::release() {
