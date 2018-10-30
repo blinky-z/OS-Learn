@@ -29,27 +29,27 @@ void do_increment(int thread_num, int* cnt) {
     }
 }
 
-//TEST_CASE("Concurrent count increment") {
-//    THREADS_NUM = 100;
-//    OP_PER_THREAD = 100;
-//
-//    int cnt = 0;
-//
-//    for (int current_try = 0; current_try < 10; current_try++) {
-//        vector<thread> threads;
-//        threads.reserve(THREADS_NUM);
-//        for (int current_thread = 0; current_thread < THREADS_NUM; current_thread++) {
-//            threads.emplace_back(thread(do_increment, current_thread, &cnt));
-//        }
-//
-//        for (int i = 0; i < THREADS_NUM; i++) {
-//            threads[i].join();
-//        }
-//
-//        REQUIRE(cnt == THREADS_NUM * OP_PER_THREAD);
-//        cnt = 0;
-//    }
-//}
+TEST_CASE("Concurrent count increment") {
+    THREADS_NUM = 100;
+    OP_PER_THREAD = 100;
+
+    int cnt = 0;
+
+    for (int current_try = 0; current_try < 10; current_try++) {
+        vector<thread> threads;
+        threads.reserve(THREADS_NUM);
+        for (int current_thread = 0; current_thread < THREADS_NUM; current_thread++) {
+            threads.emplace_back(thread(do_increment, current_thread, &cnt));
+        }
+
+        for (int i = 0; i < THREADS_NUM; i++) {
+            threads[i].join();
+        }
+
+        REQUIRE(cnt == THREADS_NUM * OP_PER_THREAD);
+        cnt = 0;
+    }
+}
 
 void do_acquire(atomic<bool>* locked, condition_variable* is_second_thread_acquired_lock) {
     *locked = lock.try_lock();
