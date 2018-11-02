@@ -67,7 +67,7 @@ TEST_CASE("Concurrent count increment") {
 // Теперь, если condition variable находится в состоянии ожидания (то есть тред заблокирован) и получает оповещение:
 // 1) Тред разблокируется и захватывает мьютекс снова
 // 2) Проверяется предикат:
-// 3) Если предикат true: тред продолжает работу
+// 3) Если предикат true: тред продолжает работу (мьютекс заблокирован)
 //    Если предикат false: разблоирует мьютекс и тред помещается снова в заблокированное состояние
 
 //Как пример, расммотрим работу двух функций - receiver и sender:
@@ -113,7 +113,8 @@ TEST_CASE("Concurrent count increment") {
 // деле ожиданиемого ивента не происходило и программа будет работать неправильно.
 // Поэтому мы заручаемся поддержкой не только сигналов, но и памяти. По состояния памяти (т.е. переменной) мы может
 // гарантировать правильное происхождение ивентов
-
+//
+//
 // Почему нужно использовать мьютекс в sender потоке? Что, если сделать предикат атомарной переменной?
 // Допустим, что код потоков будет таким:
 //void waitingForWork(){
@@ -136,14 +137,26 @@ TEST_CASE("Concurrent count increment") {
 //      2) Если первый поток видит значение false, то тред вызывает wait() и поток блокируется. НО, именно между моментом
 // проверки предиката и блокировки треда в ожидании оповещений появляется временное окно, т.е. эти действия не происходят
 // атомарно. Именно в этот прмомежуток времени мог произойти context switch и второй тред отправил сигнал до того, как
-// возможность выполнения передалась обартно к первому потоку, чтобы он смог вызвать wait() и ожидать оповещений.
+// возможность выполнения передалась обартно к первому потоку, чтобы он смог вызвать wait() и начать ожидать оповещения.
 // Итог: сигнал, посланный вторым потоком (sender) теряется, первый поток (receiver) больше никогда не получит оповещение,
 // а значит, первый поток блокируется навсегда. Такая ситуация известна как Deadlock.
 // Даннная проблема решается применением мьютекса во втором треде. Если первый поток захватил лок, то второй поток не
-// может работать с предикатом и посылать оповещения. Первый поток увидит значение false, атомарно разблокирует мьютекс
-// и войдет в заблокированное состояние в ожидании оповещения. Все это время второй поток был заблокирован, и он не мог
-// послать оповещения.
+// может работать с предикатом и посылать оповещения. Первый поток увидит значение false, пройдет какой-то промежуток
+// времени, но во время него второй поток не сможет получить доступ к работе над предикатом, так как он заблокируется на
+// мьютексе, далее первый поток атомарно разблокирует мьютекс и входит  в заблокированное состояние в ожидании оповещения.
+// Только после того, как вызов wait() разблокировал мьютекс, второй сделает работу и пошлет оповещение
+
+// Без использования мьютекса вторым потоком могла возникнуть такая ситуация:
+//     Thread 1                         Thread 2
 //
+//     unique_lock
+//     while (!condition)
+//     <временное окно,
+//     происходит context switch>
+//                                      condition = true
+//                                      condVar.notify_one()
+//
+//     condVar.wait()
 
 // Почему нужно использовать mutex в вызове wait()?
 // Для избежания race condition.
@@ -169,43 +182,54 @@ TEST_CASE("Concurrent count increment") {
 //атомарно - это исключает другую ситуацию, когда, даже если второй тред был защищен локом, но после разблокировки мьютекса,
 // если бы произошел context switch, мог послать сигнал, который потерялся бы
 
-mutex wait_mutex;
-condition_variable is_first_thread_acquired;
-bool first_thread_acquired = false; // predicate - нам нужен предикат, так как сигналы могут теряться, поэтому нам нужна
-// дополнительная гарантия в виде памяти
-// отслеживая дополнительно, кроем сигналов, состояние памяти мы можем исключить lost wakeup и spurious wakeup
-condition_variable is_second_thread_tried_to_acquire;
-bool second_thread_tried_to_acquire = false;
-condition_variable is_second_thread_can_acquire;
-bool second_thread_can_acquire = false;
+
+// predicate - нам нужен предикат, так как сигналы могут теряться, поэтому нам нужна
+// дополнительная гарантия в виде памяти (сейчас мы говорим об аппаратных вещах, сигналы могут теряться, тогда помогает
+// отслеживание памяти)
+// с помощью отслеживания состояния памяти мы можем исключить lost wakeup и spurious wakeup
+
+// spurious wakeup - ложное пробуждение condition variable, то есть когда сигнала от треда, который должен был послать
+// оповещение, на самом деле не было
+// lost wakeup - ситуация, когда сигнал теряется, то есть оповещение произошло тогда, когда сигнал никто не ожидал
+// То есть вызов notify() произошел до вызова notify()
+
+mutex first_thread_acquired_mutex;
+condition_variable is_first_thread_acquired_cond;
+bool first_thread_acquired_pred = false;
+
+mutex second_thread_tried_to_acquire_mutex;
+condition_variable is_second_thread_tried_to_acquire_cond;
+bool second_thread_tried_to_acquire_pred = false;
+
+mutex first_thread_released_mutex;
+condition_variable is_first_thread_released_cond;
+bool first_thread_released_pred = false;
 
 void do_acquire() {
-    cout << "Thread 2 is waiting until first thread acquire a lock" << endl;
+    // we need to ensure that first thread acquired a lock before we call try_lock() func
+    unique_lock<mutex> first_thread_acquired_unique_lock(first_thread_acquired_mutex);
+    cout << "Thread 2 is waiting until the lock is acquired by Thread 1" << endl;
+    is_first_thread_acquired_cond.wait(first_thread_acquired_unique_lock, [] { return first_thread_acquired_pred; });
 
-    unique_lock<mutex> wait_lock(wait_mutex);
-    is_first_thread_acquired.wait(wait_lock, [] { return first_thread_acquired; });
-    wait_lock.unlock();
-
-    cout << "Thread 2 is trying to acquire a lock" << endl;
+    cout << "Thread 2 got a notify and trying to acquire a lock while Thread 1 is holding it" << endl;
     bool locked = lock.try_lock();
-
-    cout << "Thread 2 tried to acquire a lock" << endl;
-    cout << "Result: " << locked << endl;
     REQUIRE(!locked);
+    cout << "Thread 2 tried to acquire a lock | Result: " + to_string(locked) << endl;
 
     {
-        lock_guard<mutex> lockGuard(wait_mutex);
-        second_thread_tried_to_acquire = true;
+        lock_guard<mutex> lockGuard(second_thread_tried_to_acquire_mutex);
+        second_thread_tried_to_acquire_pred = true;
+        cout << "Thread 2 tried to acquire a lock so need to wake up Thread 1" << endl;
     }
-    is_second_thread_tried_to_acquire.notify_one();
+    is_second_thread_tried_to_acquire_cond.notify_one();
 
-    is_second_thread_can_acquire.wait(wait_lock, [] { return second_thread_can_acquire; });
-    wait_lock.unlock();
+    cout << "Thread 2 is waiting until the lock is released by Thread 1" << endl;
+    unique_lock<mutex> first_thread_released_unique_lock(first_thread_released_mutex);
+    is_first_thread_released_cond.wait(first_thread_released_unique_lock, [] { return first_thread_released_pred; });
 
-    cout << "Thread 2 is trying to acquire a lock again" << endl;
+    cout << "Thread 2 got a notify and trying to acquire a lock while Thread 1 released it" << endl;
     locked = lock.try_lock();
-    cout << "Thread 2 tried to acquire a lock" << endl;
-    cout << "Result: " << locked << endl;
+    cout << "Thread 2 tried to acquire a lock | Result: " + to_string(locked) << endl;
     REQUIRE(locked);
 
     lock.release();
@@ -214,16 +238,18 @@ void do_acquire() {
 void find_n_prime_number(int n) {
     lock.acquire();
     {
-        lock_guard<mutex> lockGuard(wait_mutex);
-        first_thread_acquired = true;
+        lock_guard<mutex> lockGuard(first_thread_acquired_mutex);
+        first_thread_acquired_pred = true;
+        cout << "Thread 1 acquired a lock" << endl;
     }
-    is_first_thread_acquired.notify_one();
-    cout << "Thread 1 acquired a lock\n";
+    is_first_thread_acquired_cond.notify_one();
 
+    unique_lock<mutex> second_thread_tried_to_acquire_unique_lock(second_thread_tried_to_acquire_mutex);
     cout << "Thread 1 is waiting until Thread 2 try to acquire a lock" << endl;
-    unique_lock<mutex> wait_lock;
-    is_second_thread_tried_to_acquire.wait(wait_lock, [] { return second_thread_tried_to_acquire; });
-    wait_lock.unlock();
+    is_second_thread_tried_to_acquire_cond.wait(second_thread_tried_to_acquire_unique_lock,
+                                           [] { return second_thread_tried_to_acquire_pred; });
+
+    cout << "Thread 1 got a notify and started calculating n-th prime number" << endl;
 
     int prime_numbers_cnt = 0;
     int current_num = 2;
@@ -243,25 +269,33 @@ void find_n_prime_number(int n) {
         current_num++;
     }
 
+    cout << "Thread 1 found n-th prime number" << endl;
+
     lock.release();
-    cout << "Thread 1 released a lock\n";
+    cout << "Thread 1 released a lock" << endl;
     {
-        lock_guard<mutex> lockGuard(wait_mutex);
-        second_thread_can_acquire = true;
+        lock_guard<mutex> lockGuard(first_thread_released_mutex);
+        first_thread_released_pred = true;
+        cout << "Thread 1 is notifying that lock was released so Thread 2 can try to acquire a lock again" << endl;
     }
-    is_second_thread_can_acquire.notify_one();
+    is_first_thread_released_cond.notify_one();
 }
 
 TEST_CASE("Unable acquire a lock while other thread already acquired it") {
     THREADS_NUM = 2;
 
-    vector<thread> threads;
-    threads.reserve(THREADS_NUM);
+    for (int i = 0; i < 1000; i++) {
+        first_thread_acquired_pred = false;
+        first_thread_released_pred = false;
+        second_thread_tried_to_acquire_pred = false;
+        vector<thread> threads;
+        threads.reserve(THREADS_NUM);
 
-    threads.emplace_back(thread(do_acquire)); // put second thread to work
-    threads.emplace_back(thread(find_n_prime_number, 50000)); // put first thread to work (long work)
+        threads.emplace_back(thread(do_acquire)); // put second thread to work
+        threads.emplace_back(thread(find_n_prime_number, 50000)); // put first thread to work (long work)
 
-    for (int i = 0; i < THREADS_NUM; i++) {
-        threads[i].join();
+        for (int i = 0; i < THREADS_NUM; i++) {
+            threads[i].join();
+        }
     }
 }
