@@ -5,16 +5,11 @@
 #include <vector>
 #include <thread>
 #include <condition_variable>
-#include "../Mutex.h"
 #include "../Spinlock.h"
 
 using namespace std;
 
-#if TEST_MUTEX
-Mutex lock;
-#else
 Spinlock lock;
-#endif
 
 int THREADS_NUM;
 int OP_PER_THREAD;
@@ -219,7 +214,7 @@ void do_acquire() {
     {
         lock_guard<mutex> lockGuard(second_thread_tried_to_acquire_mutex);
         second_thread_tried_to_acquire_pred = true;
-        cout << "Thread 2 tried to acquire a lock so need to wake up Thread 1" << endl;
+        cout << "Thread 2 is notifying that try was done so Thread 1 can work further" << endl;
     }
     is_second_thread_tried_to_acquire_cond.notify_one();
 
@@ -237,10 +232,11 @@ void do_acquire() {
 
 void find_n_prime_number(int n) {
     lock.acquire();
+    cout << "Thread 1 acquired a lock" << endl;
     {
         lock_guard<mutex> lockGuard(first_thread_acquired_mutex);
         first_thread_acquired_pred = true;
-        cout << "Thread 1 acquired a lock" << endl;
+        cout << "Thread 1 is notifying that lock was acquired so Thread 2 can try to acquire a lock" << endl;
     }
     is_first_thread_acquired_cond.notify_one();
 
