@@ -8,7 +8,6 @@ add_executable(mutex_tests
 #        src files
         ../Mutex.h ../Mutex.cpp
 #        ------------------------
-#        tests
         tests.cpp
         )
 
