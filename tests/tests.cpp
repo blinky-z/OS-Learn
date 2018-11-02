@@ -247,7 +247,7 @@ void find_n_prime_number(int n) {
     unique_lock<mutex> second_thread_tried_to_acquire_unique_lock(second_thread_tried_to_acquire_mutex);
     cout << "Thread 1 is waiting until Thread 2 try to acquire a lock" << endl;
     is_second_thread_tried_to_acquire_cond.wait(second_thread_tried_to_acquire_unique_lock,
-                                           [] { return second_thread_tried_to_acquire_pred; });
+                                                [] { return second_thread_tried_to_acquire_pred; });
 
     cout << "Thread 1 got a notify and started calculating n-th prime number" << endl;
 
@@ -284,18 +284,13 @@ void find_n_prime_number(int n) {
 TEST_CASE("Unable acquire a lock while other thread already acquired it") {
     THREADS_NUM = 2;
 
-    for (int i = 0; i < 1000; i++) {
-        first_thread_acquired_pred = false;
-        first_thread_released_pred = false;
-        second_thread_tried_to_acquire_pred = false;
-        vector<thread> threads;
-        threads.reserve(THREADS_NUM);
+    vector<thread> threads;
+    threads.reserve(THREADS_NUM);
 
-        threads.emplace_back(thread(do_acquire)); // put second thread to work
-        threads.emplace_back(thread(find_n_prime_number, 50000)); // put first thread to work (long work)
+    threads.emplace_back(thread(do_acquire)); // put second thread to work
+    threads.emplace_back(thread(find_n_prime_number, 50000)); // put first thread to work (long work)
 
-        for (int i = 0; i < THREADS_NUM; i++) {
-            threads[i].join();
-        }
+    for (int i = 0; i < THREADS_NUM; i++) {
+        threads[i].join();
     }
 }
