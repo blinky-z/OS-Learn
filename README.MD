@@ -402,8 +402,8 @@ void do_critical3() {
 Рассмотрим задачу производителя и потребителя для большего понимания использования семафора:
 ```c++
 semaphore mutex = 1;
-semaphore full = 0;
-semaphore empty = N; // кол-во ячеек в буфере
+semaphore full = 0; // кол-во доступных для чтения ячеек в буфере
+semaphore empty = N; // кол-во свободных для заполнения ячеек в буфере
 ItemBuffer items[N];
 
 void producer() {
