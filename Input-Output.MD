@@ -168,6 +168,7 @@ DMA позволяет освободить процессор от работы
 
 ## 7) Inherit I/O, Pipe I/O
 **Inherit I/O:**
+
 Из javadoc ProcessBuilder: `subprocess I/O source or destination will be the same as those of the current process`
 
 Тут будет много упоминаний джавы, так как все это я разбирал, когда писал программу для бэкапа дб и разбирался в процессах, I/O процессов в джаве и стримах.
@@ -178,6 +179,9 @@ Inheriting - это когда субпроцесс пишет в свой stdou
 Также, о Inherit I/O в javadoc сказано: `This is the normal behavior of most operating system command interpreters (shells)`. То есть, bash например работает именно таким образом. Но как сделан Inherit I/O?
 
 **Piped I/O:** 
-Джава вызов getInputStream() отдает нам PipeInputStream, который расширяет FileInputStream (BufferedInputStream на винде, то под ним также FileInputStream). Понятно, к чему подсоединен данный стрим - к fd 1 stdout субпроцесса, через который читаем выход субпроцесса. Итак, где тут pipe? Все просто: выход субпроцесса (stdout стрима) это вход данного PipeInputStream. Вот и весь piping. Главное понимать, что здесь может быть и файловые дескриптор стрима, а не другой программнвый джава стрим. Но суть остается та же - pipe.
-То же самое и с getOutputStream(), который отдает нам BufferedOutputStream, в который обернут FileOutputStream, через который мы можем писать в stdin субпроцесса.
-Это сделано тоже с помощью piping: выход нашего FileOutputStream это вход stdin стрима субпроцесса.
+
+Джава вызов getInputStream() отдает нам PipeInputStream, который расширяет FileInputStream (BufferedInputStream на винде, то под ним также FileInputStream). Понятно, к чему подсоединен данный стрим - к fd 1 stdout субпроцесса, через который читаем выход субпроцесса. 
+
+Итак, где тут pipe? Все просто: выход субпроцесса (stdout стрима) это вход данного PipeInputStream. Вот и весь piping. Главное понимать, что здесь может быть и файловые дескриптор стрима, а не другой программнвый джава стрим. Но суть остается та же - pipe.
+
+То же самое и с getOutputStream(), который отдает нам BufferedOutputStream, в который обернут FileOutputStream, через который мы можем писать в stdin субпроцесса.Это сделано тоже с помощью piping: выход нашего FileOutputStream это вход stdin стрима субпроцесса.
