@@ -1,6 +1,6 @@
 # Помощник в освоении операционных систем
 
-**\[Операционные системы\] | \[[Компьютерные сети](https://github.com/blinky-z/Computer-Networks)\] | \[[I/O и сетевое программирование](https://github.com/blinky-z/I-O-Book)\]**
+<p align="center"><b>[Операционные системы] | [<a href="https://github.com/blinky-z/Computer-Networks">Компьютерные сети</a>] | [<a href="https://github.com/blinky-z/I-O-Book">I/O и сетевое программирование</a>]</b></p>
 
 **Содержание:**
 - [Что такое процесс](#что-такое-процесс)
