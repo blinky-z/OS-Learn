@@ -122,16 +122,16 @@ void setDataReady(){
 **Без использования мьютекса во втором потоке (sender) могла возникнуть такая ситуация:**
 
 ```text
-    Receiver                            Sender
-
-    unique_lock
-    while (!condition)
-    <временное окно,
-    происходит context switch>
-                                      condition = true
-                                      condVar.notify_one()
-
-    condVar.wait()
+            Receiver            |           Sender           
+    ----------------------------|-----------------------------
+    unique_lock                 |
+    while (!condition)          |
+    <временное окно,            |
+    происходит context switch>  |
+                                |      condition = true
+                                |      condVar.notify_one()
+                                |
+    condVar.wait()              |
 ```
 
 ---
