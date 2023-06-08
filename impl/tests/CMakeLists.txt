@@ -5,16 +5,12 @@ project(spinlock_tests)
 set(CMAKE_CXX_STANDARD 11)
 
 add_executable(mutex_tests
-#        src files
-        ../Mutex.h ../Mutex.cpp
-#        ------------------------
+        ../mutex/Mutex.h ../mutex/Mutex.cpp
         mutex_tests.cpp
         )
 
 add_executable(spinlock_tests
-        #        src files
-        ../Spinlock.h ../Spinlock.cpp
-        #        ------------------------
+        ../spinlock/Spinlock.h ../spinlock/Spinlock.cpp
         spinlock_tests.cpp
         )
 

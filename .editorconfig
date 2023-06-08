@@ -1,4 +1,3 @@
-# Documentation config
 root = true
 
 [*.{md,MD}]
